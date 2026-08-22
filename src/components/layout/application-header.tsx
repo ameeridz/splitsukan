@@ -44,7 +44,13 @@ export function ApplicationHeader({
   }
 
   return (
-    <div className="mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+    <div
+      className={[
+        "mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center gap-3",
+        "px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))]",
+        "sm:px-6 lg:px-8 lg:py-3",
+      ].join(" ")}
+    >
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <Image
           src="/icons/icon-192x192.png"

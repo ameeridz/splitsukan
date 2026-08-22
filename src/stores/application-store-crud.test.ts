@@ -85,13 +85,13 @@ describe("useApplicationStore session CRUD actions", () => {
       createdSession.id,
       createValidSessionValues({
         activityType: "other",
-        customActivityName: "  Basketball  ",
+        customActivityName: "  Football  ",
         note: "   ",
       }),
     );
 
     expect(updatedSession?.activityType).toBe("other");
-    expect(updatedSession?.customActivityName).toBe("Basketball");
+    expect(updatedSession?.customActivityName).toBe("Football");
     expect(updatedSession?.note).toBeNull();
     expect(updatedSession?.updatedAt).toBe(updatedTimestamp);
   });
