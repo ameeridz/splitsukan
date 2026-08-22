@@ -86,12 +86,12 @@ describe("useApplicationStore", () => {
     const session = useApplicationStore.getState().createSession(
       createValidSessionValues({
         activityType: "other",
-        customActivityName: "  Basketball  ",
+        customActivityName: "  Football  ",
       }),
     );
 
     expect(session.activityType).toBe("other");
-    expect(session.customActivityName).toBe("Basketball");
+    expect(session.customActivityName).toBe("Football");
   });
 
   it("appends a session without mutating the previous array", () => {

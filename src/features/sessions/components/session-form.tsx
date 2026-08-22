@@ -230,7 +230,7 @@ export function SessionForm({
               onChange={(event) =>
                 updateField("customActivityName", event.target.value)
               }
-              placeholder="Example: Basketball"
+              placeholder="Example: Football"
               aria-invalid={Boolean(errors.customActivityName)}
               aria-describedby={
                 errors.customActivityName ? "custom-activity-error" : undefined
@@ -295,7 +295,7 @@ export function SessionForm({
             id="session-venue"
             value={values.venue}
             onChange={(event) => updateField("venue", event.target.value)}
-            placeholder="Example: ABC Badminton Centre"
+            placeholder="Example: Dewan Bunga Lili"
             aria-invalid={Boolean(errors.venue)}
             aria-describedby={errors.venue ? "session-venue-error" : undefined}
             className={`${inputBase} ${errors.venue ? "border-danger" : "border-border focus:border-primary"}`}

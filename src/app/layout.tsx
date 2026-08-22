@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { ApplicationStoreHydration } from "../components/providers/application-store-hydration";
+import { PwaInstallBanner } from "../components/pwa/pwa-install-banner";
 import { ThemeProvider } from "../components/providers/theme-provider";
 
 import "./globals.css";
@@ -42,14 +43,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   colorScheme: "light dark",
   themeColor: [
-    {
-      media: "(prefers-color-scheme: light)",
-      color: "#f7faf8",
-    },
-    {
-      media: "(prefers-color-scheme: dark)",
-      color: "#0b1f1a",
-    },
+    { media: "(prefers-color-scheme: light)", color: "#f7faf8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1f1a" },
   ],
 };
 
@@ -65,6 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         >
           <ApplicationStoreHydration />
           {children}
+          <PwaInstallBanner />
         </ThemeProvider>
       </body>
     </html>
