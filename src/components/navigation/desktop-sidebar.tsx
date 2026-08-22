@@ -1,13 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  CalendarDays,
-  Plus,
-  Settings,
-  Split,
-} from "lucide-react";
+import { CalendarDays, ExternalLink, Plus, Settings } from "lucide-react";
 
 function isSessionsRoute(pathname: string) {
   return (
@@ -23,7 +19,6 @@ function isSettingsRoute(pathname: string) {
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-
   const sessionsActive = isSessionsRoute(pathname);
   const settingsActive = isSettingsRoute(pathname);
 
@@ -42,16 +37,15 @@ export function DesktopSidebar() {
           "focus-visible:ring-offset-surface",
         ].join(" ")}
       >
-        <span
+        <Image
+          src="/icons/icon-192x192.png"
+          alt=""
+          width={44}
+          height={44}
+          priority
           aria-hidden="true"
-          className={[
-            "flex size-11 shrink-0 items-center justify-center rounded-2xl",
-            "bg-primary text-primary-foreground",
-            "shadow-[0_0.5rem_1.5rem_color-mix(in_oklch,var(--primary)_20%,transparent)]",
-          ].join(" ")}
-        >
-          <Split size={23} strokeWidth={2.3} />
-        </span>
+          className="size-11 shrink-0 rounded-2xl object-cover shadow-sm"
+        />
 
         <span className="min-w-0">
           <span className="block truncate text-base font-bold tracking-tight">
@@ -128,12 +122,38 @@ export function DesktopSidebar() {
         </Link>
       </div>
 
-      <div className="mt-auto rounded-2xl border border-border bg-surface-muted p-4">
-        <p className="text-sm font-semibold text-foreground">Local MVP</p>
-        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-          Your session data stays on this device until cloud sharing is added
-          in a later phase.
-        </p>
+      <div className="mt-auto space-y-3">
+        <div className="rounded-2xl border border-border bg-surface-muted p-4">
+          <p className="text-sm font-semibold text-foreground">Local MVP</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Your session data stays on this device until cloud sharing is added
+            in a later phase.
+          </p>
+        </div>
+
+        <a
+          href="https://ridzu.one"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Visit Ridzjuan website"
+          className={[
+            "group flex min-h-11 items-center justify-between rounded-xl px-3",
+            "text-xs font-medium text-muted-foreground transition-colors",
+            "hover:bg-surface-muted hover:text-foreground",
+            "focus-visible:outline-none focus-visible:ring-2",
+            "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
+            "focus-visible:ring-offset-surface",
+          ].join(" ")}
+        >
+          <span>
+            Built by <span className="font-bold text-primary">Ridzjuan</span>
+          </span>
+          <ExternalLink
+            aria-hidden="true"
+            size={15}
+            className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 motion-reduce:transform-none"
+          />
+        </a>
       </div>
     </nav>
   );
