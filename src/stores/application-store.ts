@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { SessionFormValues } from "../features/sessions/session-form-model";
 import {
   createSessionRecord,
+  updateSessionRecord,
   type SessionId,
   type SessionRecord,
 } from "../features/sessions/session-model";
@@ -23,6 +24,11 @@ type ApplicationState = {
 
 type ApplicationActions = {
   createSession: (values: SessionFormValues) => SessionRecord;
+  updateSession: (
+    sessionId: SessionId,
+    values: SessionFormValues,
+  ) => SessionRecord | undefined;
+  deleteSession: (sessionId: SessionId) => boolean;
   getSessionById: (sessionId: SessionId) => SessionRecord | undefined;
   setHasHydrated: (hasHydrated: boolean) => void;
   resetStore: () => void;
@@ -58,6 +64,48 @@ export const useApplicationStore = create<ApplicationStore>()(
 
         set((state) => ({ sessions: [...state.sessions, session] }));
         return session;
+      },
+
+      updateSession: (sessionId, values) => {
+        const existingSession = get().sessions.find(
+          (session) => session.id === sessionId,
+        );
+
+        if (!existingSession) {
+          return undefined;
+        }
+
+        const updatedSession = updateSessionRecord({
+          session: existingSession,
+          values,
+          timestamp: createTimestamp(),
+        });
+
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === sessionId ? updatedSession : session,
+          ),
+        }));
+
+        return updatedSession;
+      },
+
+      deleteSession: (sessionId) => {
+        const sessionExists = get().sessions.some(
+          (session) => session.id === sessionId,
+        );
+
+        if (!sessionExists) {
+          return false;
+        }
+
+        set((state) => ({
+          sessions: state.sessions.filter(
+            (session) => session.id !== sessionId,
+          ),
+        }));
+
+        return true;
       },
 
       getSessionById: (sessionId) =>

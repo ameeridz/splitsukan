@@ -10,7 +10,6 @@ export const sessionStatuses = ["draft", "active", "settled"] as const;
 
 export type CurrencyCode = (typeof supportedCurrencyCodes)[number];
 export type SessionStatus = (typeof sessionStatuses)[number];
-
 export type SessionId = string;
 
 export type SessionRecord = {
@@ -34,29 +33,50 @@ export type CreateSessionRecordInput = {
   timestamp: string;
 };
 
+export type UpdateSessionRecordInput = {
+  session: SessionRecord;
+  values: SessionFormValues;
+  timestamp: string;
+};
+
+function normalizeSessionValues(values: SessionFormValues) {
+  return {
+    activityType: values.activityType,
+    customActivityName: isCustomActivity(values.activityType)
+      ? values.customActivityName.trim()
+      : null,
+    date: values.date,
+    startTime: values.startTime,
+    venue: values.venue.trim(),
+    note: values.note.trim() || null,
+  };
+}
+
 export function createSessionRecord({
   id,
   values,
   timestamp,
 }: CreateSessionRecordInput): SessionRecord {
-  const customActivityName = isCustomActivity(values.activityType)
-    ? values.customActivityName.trim()
-    : null;
-  const note = values.note.trim() || null;
-
   return {
     id,
-    activityType: values.activityType,
-    customActivityName,
-    date: values.date,
-    startTime: values.startTime,
-    venue: values.venue.trim(),
-    note,
+    ...normalizeSessionValues(values),
     currency: "MYR",
     status: "draft",
     createdAt: timestamp,
     updatedAt: timestamp,
     settledAt: null,
+  };
+}
+
+export function updateSessionRecord({
+  session,
+  values,
+  timestamp,
+}: UpdateSessionRecordInput): SessionRecord {
+  return {
+    ...session,
+    ...normalizeSessionValues(values),
+    updatedAt: timestamp,
   };
 }
 
