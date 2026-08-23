@@ -73,7 +73,7 @@ export function MobileNavigation() {
   return (
     <nav
       aria-label="Primary navigation"
-      className="px-4 pb-[calc(0.20rem+env(safe-area-inset-bottom))]"
+      className="px-4 pb-[calc(0.15rem+env(safe-area-inset-bottom))]"
     >
       <div
         className={[
