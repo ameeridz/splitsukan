@@ -37,11 +37,11 @@ describe("useApplicationStore", () => {
     useApplicationStore.getState().resetStore();
   });
 
-  it("starts with schema version 2 and no sessions", () => {
+  it("starts with schema version 3 and no sessions", () => {
     const state = useApplicationStore.getState();
 
     expect(state.schemaVersion).toBe(applicationSchemaVersion);
-    expect(state.schemaVersion).toBe(2);
+    expect(state.schemaVersion).toBe(3);
     expect(state.sessions).toEqual([]);
   });
 
@@ -64,6 +64,7 @@ describe("useApplicationStore", () => {
       currency: "MYR",
       status: "draft",
       participants: [],
+      expenses: [],
       createdAt: fixedTimestamp,
       updatedAt: fixedTimestamp,
       settledAt: null,
