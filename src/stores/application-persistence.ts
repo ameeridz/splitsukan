@@ -4,6 +4,10 @@ import {
   type SessionExpense,
 } from "../features/expenses/expense-model";
 import { participationWeightUnits } from "../features/participants/participant-model";
+import {
+  repaymentStatuses,
+  type SessionRepayment,
+} from "../features/repayments/repayment-model";
 import { activityOptions } from "../features/sessions/session-form-model";
 import {
   sessionStatuses,
@@ -11,7 +15,7 @@ import {
   type SessionRecord,
 } from "../features/sessions/session-model";
 
-export const currentApplicationSchemaVersion = 3;
+export const currentApplicationSchemaVersion = 4;
 
 export type PersistedApplicationState = {
   schemaVersion: number;
@@ -32,11 +36,11 @@ function isNullableString(value: unknown): value is string | null {
 }
 
 function isPositiveSafeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && typeof value === "number" && value > 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
 }
 
 function isNonNegativeSafeInteger(value: unknown): value is number {
-  return Number.isSafeInteger(value) && typeof value === "number" && value >= 0;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
 
 function isParticipant(value: unknown) {
@@ -84,6 +88,23 @@ function isSessionExpense(value: unknown): value is SessionExpense {
   );
 }
 
+function isSessionRepayment(value: unknown): value is SessionRepayment {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.fromParticipantId === "string" &&
+    typeof value.toParticipantId === "string" &&
+    value.fromParticipantId !== value.toParticipantId &&
+    isPositiveSafeInteger(value.amountMinor) &&
+    isNullableString(value.note) &&
+    repaymentStatuses.includes(value.status as never) &&
+    typeof value.completedAt === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
 function isSessionRecord(value: unknown): value is SessionRecord {
   if (!isRecord(value)) return false;
 
@@ -103,6 +124,8 @@ function isSessionRecord(value: unknown): value is SessionRecord {
     value.participants.every(isParticipant) &&
     Array.isArray(value.expenses) &&
     value.expenses.every(isSessionExpense) &&
+    Array.isArray(value.repayments) &&
+    value.repayments.every(isSessionRepayment) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string" &&
     isNullableString(value.settledAt)
@@ -111,7 +134,7 @@ function isSessionRecord(value: unknown): value is SessionRecord {
 
 function migrateLegacyState(
   value: Record<string, unknown>,
-  sourceVersion: 1 | 2,
+  sourceVersion: 1 | 2 | 3,
 ): PersistedApplicationState {
   if (!Array.isArray(value.sessions)) return emptyPersistedApplicationState;
 
@@ -126,7 +149,13 @@ function migrateLegacyState(
           : Array.isArray(session.participants)
             ? session.participants
             : [],
-      expenses: [],
+      expenses:
+        sourceVersion <= 2
+          ? []
+          : Array.isArray(session.expenses)
+            ? session.expenses
+            : [],
+      repayments: [],
     };
   });
 
@@ -151,6 +180,10 @@ export function restorePersistedApplicationState(
 
   if (persistedState.schemaVersion === 2) {
     return migrateLegacyState(persistedState, 2);
+  }
+
+  if (persistedState.schemaVersion === 3) {
+    return migrateLegacyState(persistedState, 3);
   }
 
   if (persistedState.schemaVersion !== currentApplicationSchemaVersion) {

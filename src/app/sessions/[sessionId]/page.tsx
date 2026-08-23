@@ -3,9 +3,11 @@ import { ApplicationHeader } from "../../../components/layout/application-header
 import { PageContainer } from "../../../components/layout/page-container";
 import { DesktopSidebar } from "../../../components/navigation/desktop-sidebar";
 import { MobileNavigation } from "../../../components/navigation/mobile-navigation";
+import { SessionBalanceSummary } from "../../../features/balances/components/session-balance-summary";
 import { ExpenseManager } from "../../../features/expenses/components/expense-manager";
 import { SessionExpenseSummary } from "../../../features/expenses/components/session-expense-summary";
 import { ParticipantManager } from "../../../features/participants/components/participant-manager";
+import { RepaymentManager } from "../../../features/repayments/components/repayment-manager";
 import { SessionDetailView } from "../../../features/sessions/components/session-detail-view";
 
 type SessionPageProps = {
@@ -23,7 +25,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
       header={
         <ApplicationHeader
           title="Session Overview"
-          description="Review participants and shared session costs."
+          description="Review participants, expenses, balances, and repayments."
         />
       }
       mobileNavigation={<MobileNavigation />}
@@ -34,6 +36,8 @@ export default async function SessionPage({ params }: SessionPageProps) {
           <SessionExpenseSummary sessionId={sessionId} />
           <ParticipantManager sessionId={sessionId} />
           <ExpenseManager sessionId={sessionId} />
+          <SessionBalanceSummary sessionId={sessionId} />
+          <RepaymentManager sessionId={sessionId} />
         </div>
       </PageContainer>
     </AppShell>
