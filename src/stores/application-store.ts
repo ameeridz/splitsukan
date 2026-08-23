@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { calculateSessionBalances } from "../features/balances/balance-model";
+import { calculateSettlementTransfers } from "../features/balances/settlement-model";
 import { calculateExpenseAllocations } from "../features/expenses/expense-allocation";
 import {
   createSessionExpense,
@@ -19,7 +21,15 @@ import {
   type ParticipantInput,
   type ParticipantMutationResult,
 } from "../features/participants/participant-model";
+import {
+  createSessionRepayment,
+  updateSessionRepayment,
+  type RepaymentId,
+  type RepaymentInput,
+  type RepaymentMutationResult,
+} from "../features/repayments/repayment-model";
 import type { SessionFormValues } from "../features/sessions/session-form-model";
+import { applySessionSettlementStatus } from "../features/sessions/session-settlement-model";
 import {
   createSessionRecord,
   updateSessionRecord,
@@ -73,6 +83,17 @@ type ApplicationActions = {
   ) => ExpenseMutationResult;
   voidExpense: (sessionId: SessionId, expenseId: ExpenseId) => boolean;
   deleteExpense: (sessionId: SessionId, expenseId: ExpenseId) => boolean;
+  addRepayment: (
+    sessionId: SessionId,
+    input: RepaymentInput,
+  ) => RepaymentMutationResult;
+  updateRepayment: (
+    sessionId: SessionId,
+    repaymentId: RepaymentId,
+    input: RepaymentInput,
+  ) => RepaymentMutationResult;
+  voidRepayment: (sessionId: SessionId, repaymentId: RepaymentId) => boolean;
+  deleteRepayment: (sessionId: SessionId, repaymentId: RepaymentId) => boolean;
   setHasHydrated: (hasHydrated: boolean) => void;
   resetStore: () => void;
 };
@@ -91,6 +112,30 @@ function createId() {
 
 function createTimestamp() {
   return new Date().toISOString();
+}
+
+function getOutstandingTransferAmount(
+  session: SessionRecord,
+  fromParticipantId: ParticipantId,
+  toParticipantId: ParticipantId,
+  excludedRepaymentId?: RepaymentId,
+) {
+  const calculationSession = excludedRepaymentId
+    ? {
+        ...session,
+        repayments: session.repayments.filter(
+          (repayment) => repayment.id !== excludedRepaymentId,
+        ),
+      }
+    : session;
+  const balances = calculateSessionBalances(calculationSession).balances;
+  const transfer = calculateSettlementTransfers(balances).find(
+    (item) =>
+      item.fromParticipantId === fromParticipantId &&
+      item.toParticipantId === toParticipantId,
+  );
+
+  return transfer?.amountMinor ?? 0;
 }
 
 export const useApplicationStore = create<ApplicationStore>()(
@@ -315,7 +360,14 @@ export const useApplicationStore = create<ApplicationStore>()(
         set((state) => ({
           sessions: state.sessions.map((item) =>
             item.id === sessionId
-              ? { ...item, expenses: [...item.expenses, expense], updatedAt: timestamp }
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    expenses: [...item.expenses, expense],
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
               : item,
           ),
         }));
@@ -376,13 +428,16 @@ export const useApplicationStore = create<ApplicationStore>()(
         set((state) => ({
           sessions: state.sessions.map((item) =>
             item.id === sessionId
-              ? {
-                  ...item,
-                  expenses: item.expenses.map((current) =>
-                    current.id === expenseId ? updatedExpense : current,
-                  ),
-                  updatedAt: timestamp,
-                }
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    expenses: item.expenses.map((current) =>
+                      current.id === expenseId ? updatedExpense : current,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
               : item,
           ),
         }));
@@ -398,15 +453,18 @@ export const useApplicationStore = create<ApplicationStore>()(
         set((state) => ({
           sessions: state.sessions.map((item) =>
             item.id === sessionId
-              ? {
-                  ...item,
-                  expenses: item.expenses.map((current) =>
-                    current.id === expenseId
-                      ? { ...current, status: "void", updatedAt: timestamp }
-                      : current,
-                  ),
-                  updatedAt: timestamp,
-                }
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    expenses: item.expenses.map((current) =>
+                      current.id === expenseId
+                        ? { ...current, status: "void", updatedAt: timestamp }
+                        : current,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
               : item,
           ),
         }));
@@ -421,11 +479,190 @@ export const useApplicationStore = create<ApplicationStore>()(
         set((state) => ({
           sessions: state.sessions.map((item) =>
             item.id === sessionId
-              ? {
-                  ...item,
-                  expenses: item.expenses.filter((expense) => expense.id !== expenseId),
-                  updatedAt: timestamp,
-                }
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    expenses: item.expenses.filter(
+                      (expense) => expense.id !== expenseId,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
+              : item,
+          ),
+        }));
+        return true;
+      },
+
+      addRepayment: (sessionId, input) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session) return { ok: false, reason: "session-not-found" };
+
+        const participantIds = new Set(
+          session.participants.map((participant) => participant.id),
+        );
+        if (
+          !participantIds.has(input.fromParticipantId) ||
+          !participantIds.has(input.toParticipantId)
+        ) {
+          return { ok: false, reason: "invalid-participant" };
+        }
+        if (input.fromParticipantId === input.toParticipantId) {
+          return { ok: false, reason: "same-participant" };
+        }
+        if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+          return { ok: false, reason: "invalid-amount" };
+        }
+
+        const outstandingAmount = getOutstandingTransferAmount(
+          session,
+          input.fromParticipantId,
+          input.toParticipantId,
+        );
+        if (outstandingAmount === 0) {
+          return { ok: false, reason: "no-outstanding-transfer" };
+        }
+        if (input.amountMinor > outstandingAmount) {
+          return { ok: false, reason: "amount-exceeds-outstanding" };
+        }
+
+        const timestamp = createTimestamp();
+        const repayment = createSessionRepayment({
+          id: createId(),
+          ...input,
+          timestamp,
+        });
+
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    repayments: [...item.repayments, repayment],
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
+              : item,
+          ),
+        }));
+        return { ok: true, repayment };
+      },
+
+      updateRepayment: (sessionId, repaymentId, input) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session) return { ok: false, reason: "session-not-found" };
+        const repayment = session.repayments.find(
+          (item) => item.id === repaymentId,
+        );
+        if (!repayment) return { ok: false, reason: "repayment-not-found" };
+
+        const participantIds = new Set(
+          session.participants.map((participant) => participant.id),
+        );
+        if (
+          !participantIds.has(input.fromParticipantId) ||
+          !participantIds.has(input.toParticipantId)
+        ) {
+          return { ok: false, reason: "invalid-participant" };
+        }
+        if (input.fromParticipantId === input.toParticipantId) {
+          return { ok: false, reason: "same-participant" };
+        }
+        if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+          return { ok: false, reason: "invalid-amount" };
+        }
+
+        const outstandingAmount = getOutstandingTransferAmount(
+          session,
+          input.fromParticipantId,
+          input.toParticipantId,
+          repaymentId,
+        );
+        if (outstandingAmount === 0) {
+          return { ok: false, reason: "no-outstanding-transfer" };
+        }
+        if (input.amountMinor > outstandingAmount) {
+          return { ok: false, reason: "amount-exceeds-outstanding" };
+        }
+
+        const timestamp = createTimestamp();
+        const updatedRepayment = updateSessionRepayment({
+          repayment,
+          ...input,
+          timestamp,
+        });
+
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    repayments: item.repayments.map((current) =>
+                      current.id === repaymentId ? updatedRepayment : current,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
+              : item,
+          ),
+        }));
+        return { ok: true, repayment: updatedRepayment };
+      },
+
+      voidRepayment: (sessionId, repaymentId) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        const repayment = session?.repayments.find(
+          (item) => item.id === repaymentId,
+        );
+        if (!session || !repayment || repayment.status === "void") return false;
+
+        const timestamp = createTimestamp();
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    repayments: item.repayments.map((current) =>
+                      current.id === repaymentId
+                        ? { ...current, status: "void", updatedAt: timestamp }
+                        : current,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
+              : item,
+          ),
+        }));
+        return true;
+      },
+
+      deleteRepayment: (sessionId, repaymentId) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session?.repayments.some((item) => item.id === repaymentId)) {
+          return false;
+        }
+
+        const timestamp = createTimestamp();
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? applySessionSettlementStatus(
+                  {
+                    ...item,
+                    repayments: item.repayments.filter(
+                      (repayment) => repayment.id !== repaymentId,
+                    ),
+                    updatedAt: timestamp,
+                  },
+                  timestamp,
+                )
               : item,
           ),
         }));

@@ -7,7 +7,7 @@ import {
 import type { SessionFormValues } from "../features/sessions/session-form-model";
 
 const fixedSessionId = "11111111-2222-4333-8444-555555555555";
-const fixedTimestamp = "2026-08-22T12:00:00.000Z";
+const fixedTimestamp = "2026-08-23T05:00:00.000Z";
 
 function createValidSessionValues(
   overrides: Partial<SessionFormValues> = {},
@@ -37,15 +37,15 @@ describe("useApplicationStore", () => {
     useApplicationStore.getState().resetStore();
   });
 
-  it("starts with schema version 3 and no sessions", () => {
+  it("starts with schema version 4 and no sessions", () => {
     const state = useApplicationStore.getState();
 
     expect(state.schemaVersion).toBe(applicationSchemaVersion);
-    expect(state.schemaVersion).toBe(3);
+    expect(state.schemaVersion).toBe(4);
     expect(state.sessions).toEqual([]);
   });
 
-  it("creates a normalized Draft session in MYR", () => {
+  it("creates a normalized Draft session with empty domain arrays", () => {
     const session = useApplicationStore.getState().createSession(
       createValidSessionValues({
         venue: "  ABC Badminton Centre  ",
@@ -65,6 +65,7 @@ describe("useApplicationStore", () => {
       status: "draft",
       participants: [],
       expenses: [],
+      repayments: [],
       createdAt: fixedTimestamp,
       updatedAt: fixedTimestamp,
       settledAt: null,
@@ -103,7 +104,7 @@ describe("useApplicationStore", () => {
     expect(nextSessions).toEqual([session]);
   });
 
-  it("returns a newly created session from the action", () => {
+  it("returns the stored session from createSession", () => {
     const returnedSession = useApplicationStore
       .getState()
       .createSession(createValidSessionValues());
@@ -128,7 +129,7 @@ describe("useApplicationStore", () => {
     ).toBeUndefined();
   });
 
-  it("resets sessions while preserving the schema version", () => {
+  it("resets sessions while preserving schema version 4", () => {
     useApplicationStore
       .getState()
       .createSession(createValidSessionValues());
@@ -136,7 +137,7 @@ describe("useApplicationStore", () => {
     useApplicationStore.getState().resetStore();
 
     const state = useApplicationStore.getState();
-    expect(state.schemaVersion).toBe(applicationSchemaVersion);
+    expect(state.schemaVersion).toBe(4);
     expect(state.sessions).toEqual([]);
   });
 });
