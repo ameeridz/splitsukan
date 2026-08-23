@@ -7,27 +7,15 @@ import {
   Clock3,
   MapPin,
   Plus,
+  UsersRound,
 } from "lucide-react";
 
 import { useApplicationStore } from "../../../stores/application-store";
+import { formatSessionDate } from "../session-date-format";
 import {
   getSessionActivityName,
   type SessionRecord,
 } from "../session-model";
-
-function formatSessionDate(date: string) {
-  const parsedDate = new Date(`${date}T00:00:00`);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return date;
-  }
-
-  return new Intl.DateTimeFormat("en-MY", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(parsedDate);
-}
 
 function formatSessionTime(startTime: string) {
   const [hourText, minuteText] = startTime.split(":");
@@ -54,6 +42,10 @@ function sortSessions(sessions: SessionRecord[]) {
 }
 
 function SessionCard({ session }: { session: SessionRecord }) {
+  const activeParticipantCount = session.participants.filter(
+    (participant) => participant.isActive,
+  ).length;
+
   return (
     <Link
       href={`/sessions/${session.id}`}
@@ -91,6 +83,15 @@ function SessionCard({ session }: { session: SessionRecord }) {
           <Clock3 aria-hidden="true" size={17} />
           <dt className="sr-only">Start time</dt>
           <dd>{formatSessionTime(session.startTime)}</dd>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+          <UsersRound aria-hidden="true" size={17} />
+          <dt className="sr-only">Participants</dt>
+          <dd>
+            {activeParticipantCount}{" "}
+            {activeParticipantCount === 1 ? "participant" : "participants"}
+          </dd>
         </div>
       </dl>
 
@@ -170,8 +171,8 @@ export function SessionsOverview() {
               Play together. Split fairly.
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Your sessions are stored locally on this device and remain
-              available after refresh or browser restart.
+              Your sessions and participants are stored locally on this device
+              and remain available after refresh or browser restart.
             </p>
           </div>
 
@@ -186,18 +187,17 @@ export function SessionsOverview() {
       </section>
 
       <section aria-labelledby="saved-sessions-title">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2
-              id="saved-sessions-title"
-              className="text-xl font-bold tracking-tight"
-            >
-              Saved sessions
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {sortedSessions.length} locally saved {sortedSessions.length === 1 ? "session" : "sessions"}
-            </p>
-          </div>
+        <div>
+          <h2
+            id="saved-sessions-title"
+            className="text-xl font-bold tracking-tight"
+          >
+            Saved sessions
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {sortedSessions.length} locally saved{" "}
+            {sortedSessions.length === 1 ? "session" : "sessions"}
+          </p>
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">

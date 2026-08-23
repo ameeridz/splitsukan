@@ -1,9 +1,12 @@
+import { participationWeightUnits } from "../features/participants/participant-model";
+import { activityOptions } from "../features/sessions/session-form-model";
 import {
   sessionStatuses,
   supportedCurrencyCodes,
   type SessionRecord,
 } from "../features/sessions/session-model";
-import { activityOptions } from "../features/sessions/session-form-model";
+
+export const currentApplicationSchemaVersion = 2;
 
 export type PersistedApplicationState = {
   schemaVersion: number;
@@ -11,7 +14,7 @@ export type PersistedApplicationState = {
 };
 
 export const emptyPersistedApplicationState: PersistedApplicationState = {
-  schemaVersion: 1,
+  schemaVersion: currentApplicationSchemaVersion,
   sessions: [],
 };
 
@@ -21,6 +24,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNullableString(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
+}
+
+function isParticipant(value: unknown) {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.id === "string" &&
+    typeof value.displayName === "string" &&
+    typeof value.normalizedName === "string" &&
+    (value.defaultWeightUnits === participationWeightUnits.full ||
+      value.defaultWeightUnits === participationWeightUnits.half) &&
+    typeof value.participantOrder === "number" &&
+    Number.isInteger(value.participantOrder) &&
+    value.participantOrder >= 0 &&
+    typeof value.isActive === "boolean" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
 }
 
 function isSessionRecord(value: unknown): value is SessionRecord {
@@ -40,10 +63,40 @@ function isSessionRecord(value: unknown): value is SessionRecord {
     isNullableString(value.note) &&
     supportedCurrencyCodes.includes(value.currency as never) &&
     sessionStatuses.includes(value.status as never) &&
+    Array.isArray(value.participants) &&
+    value.participants.every(isParticipant) &&
     typeof value.createdAt === "string" &&
     typeof value.updatedAt === "string" &&
     isNullableString(value.settledAt)
   );
+}
+
+function migrateVersionOneState(
+  value: Record<string, unknown>,
+): PersistedApplicationState {
+  if (!Array.isArray(value.sessions)) {
+    return emptyPersistedApplicationState;
+  }
+
+  const migratedSessions = value.sessions.map((session) => {
+    if (!isRecord(session)) {
+      return session;
+    }
+
+    return {
+      ...session,
+      participants: [],
+    };
+  });
+
+  const migratedState = {
+    schemaVersion: currentApplicationSchemaVersion,
+    sessions: migratedSessions,
+  };
+
+  return migratedState.sessions.every(isSessionRecord)
+    ? migratedState
+    : emptyPersistedApplicationState;
 }
 
 export function restorePersistedApplicationState(
@@ -53,7 +106,11 @@ export function restorePersistedApplicationState(
     return emptyPersistedApplicationState;
   }
 
-  if (persistedState.schemaVersion !== 1) {
+  if (persistedState.schemaVersion === 1) {
+    return migrateVersionOneState(persistedState);
+  }
+
+  if (persistedState.schemaVersion !== currentApplicationSchemaVersion) {
     return emptyPersistedApplicationState;
   }
 
@@ -66,7 +123,7 @@ export function restorePersistedApplicationState(
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: currentApplicationSchemaVersion,
     sessions: persistedState.sessions,
   };
 }

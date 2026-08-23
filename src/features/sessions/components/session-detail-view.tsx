@@ -11,9 +11,11 @@ import {
   NotebookText,
   Pencil,
   Trash2,
+  UsersRound,
 } from "lucide-react";
 
 import { useApplicationStore } from "../../../stores/application-store";
+import { formatSessionDate } from "../session-date-format";
 import { getSessionActivityName } from "../session-model";
 
 type SessionDetailViewProps = {
@@ -86,11 +88,9 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   }
 
   const activityName = getSessionActivityName(session);
-
-  function openDeleteConfirmation() {
-    setDeleteError(null);
-    setShowDeleteConfirmation(true);
-  }
+  const activeParticipantCount = session.participants.filter(
+    (participant) => participant.isActive,
+  ).length;
 
   function closeDeleteConfirmation() {
     if (isDeleting) return;
@@ -106,11 +106,7 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
 
     try {
       const deleted = deleteSession(sessionId);
-
-      if (!deleted) {
-        throw new Error("Session no longer exists.");
-      }
-
+      if (!deleted) throw new Error("Session no longer exists.");
       router.push("/");
     } catch (error) {
       console.error("Unable to delete the SplitSukan session.", error);
@@ -124,52 +120,69 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
   return (
     <>
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Link
-            href="/"
-            className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
-          >
-            <ArrowLeft aria-hidden="true" size={19} />
-            Back to Sessions
-          </Link>
-
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Link
-              href={`/sessions/${session.id}/edit`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-surface-muted"
-            >
-              <Pencil aria-hidden="true" size={18} strokeWidth={2.2} />
-              Edit Session
-            </Link>
-
-            <button
-              type="button"
-              onClick={openDeleteConfirmation}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-danger/40 bg-danger-surface px-4 text-sm font-semibold text-danger-foreground transition-colors hover:border-danger"
-            >
-              <Trash2 aria-hidden="true" size={18} strokeWidth={2.2} />
-              Delete Session
-            </button>
-          </div>
-        </div>
+        <Link
+          href="/"
+          className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+        >
+          <ArrowLeft aria-hidden="true" size={19} />
+          Back to Sessions
+        </Link>
 
         <section className="rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-7">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
               <p className="text-sm font-semibold tracking-wide text-primary">
                 SESSION OVERVIEW
               </p>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
+              <h2 className="mt-2 truncate text-2xl font-bold tracking-tight sm:text-3xl">
                 {activityName}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Add participants next, then record shared expenses.
+                Manage participants, then record shared expenses.
               </p>
             </div>
 
-            <span className="w-fit rounded-full bg-warning-surface px-3 py-1.5 text-xs font-semibold capitalize text-warning-foreground">
-              {session.status}
-            </span>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="rounded-full bg-warning-surface px-3 py-1.5 text-xs font-semibold capitalize text-warning-foreground">
+                {session.status}
+              </span>
+
+              <Link
+                href={`/sessions/${session.id}/edit`}
+                aria-label={`Edit ${activityName} session`}
+                title="Edit Session"
+                className={[
+                  "flex size-10 items-center justify-center rounded-xl",
+                  "border border-border-strong bg-surface text-muted-foreground",
+                  "shadow-sm transition-colors hover:bg-surface-muted hover:text-foreground",
+                  "focus-visible:outline-none focus-visible:ring-2",
+                  "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
+                  "focus-visible:ring-offset-surface",
+                ].join(" ")}
+              >
+                <Pencil aria-hidden="true" size={18} strokeWidth={2.2} />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteError(null);
+                  setShowDeleteConfirmation(true);
+                }}
+                aria-label={`Delete ${activityName} session`}
+                title="Delete Session"
+                className={[
+                  "flex size-10 items-center justify-center rounded-xl",
+                  "border border-danger/40 bg-danger-surface text-danger-foreground",
+                  "transition-colors hover:border-danger",
+                  "focus-visible:outline-none focus-visible:ring-2",
+                  "focus-visible:ring-danger focus-visible:ring-offset-2",
+                  "focus-visible:ring-offset-surface",
+                ].join(" ")}
+              >
+                <Trash2 aria-hidden="true" size={18} strokeWidth={2.2} />
+              </button>
+            </div>
           </div>
 
           <dl className="mt-7 grid gap-4 sm:grid-cols-2">
@@ -177,16 +190,14 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
               <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
                 <CalendarDays aria-hidden="true" size={17} /> Date
               </dt>
-              <dd className="mt-2 font-semibold">{session.date}</dd>
+              <dd className="mt-2 font-semibold">{formatSessionDate(session.date)}</dd>
             </div>
-
             <div className="rounded-2xl border border-border bg-surface-muted p-4">
               <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
                 <Clock3 aria-hidden="true" size={17} /> Start time
               </dt>
               <dd className="mt-2 font-semibold">{session.startTime}</dd>
             </div>
-
             <div className="rounded-2xl border border-border bg-surface-muted p-4 sm:col-span-2">
               <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
                 <MapPin aria-hidden="true" size={17} /> Venue
@@ -195,7 +206,15 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 {session.venue}
               </dd>
             </div>
-
+            <div className="rounded-2xl border border-border bg-surface-muted p-4 sm:col-span-2">
+              <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
+                <UsersRound aria-hidden="true" size={17} /> Participants
+              </dt>
+              <dd className="mt-2 font-semibold">
+                {activeParticipantCount}{" "}
+                {activeParticipantCount === 1 ? "participant" : "participants"}
+              </dd>
+            </div>
             {session.note ? (
               <div className="rounded-2xl border border-border bg-surface-muted p-4 sm:col-span-2">
                 <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-subtle-foreground">
@@ -208,23 +227,13 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             ) : null}
           </dl>
         </section>
-
-        <section className="rounded-2xl border border-dashed border-border-strong bg-surface-muted p-5 sm:p-6">
-          <h2 className="text-lg font-bold tracking-tight">Next: participants</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Participant management will be connected in the next product
-            milestone. This session is already stored locally on this device.
-          </p>
-        </section>
       </div>
 
       {showDeleteConfirmation ? (
         <div
           className="fixed inset-0 z-100 flex items-end justify-center bg-overlay p-4 sm:items-center"
           onMouseDown={(event) => {
-            if (event.currentTarget === event.target) {
-              closeDeleteConfirmation();
-            }
+            if (event.currentTarget === event.target) closeDeleteConfirmation();
           }}
         >
           <section
@@ -235,41 +244,27 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
             className="w-full max-w-md rounded-3xl border border-border bg-surface p-5 shadow-[0_1.5rem_4rem_var(--shadow-color)] sm:p-6"
           >
             <span className="flex size-12 items-center justify-center rounded-2xl bg-danger-surface text-danger-foreground">
-              <Trash2 aria-hidden="true" size={22} strokeWidth={2.2} />
+              <Trash2 aria-hidden="true" size={22} />
             </span>
-
-            <h2
-              id="delete-session-title"
-              className="mt-5 text-xl font-bold tracking-tight"
-            >
+            <h2 id="delete-session-title" className="mt-5 text-xl font-bold tracking-tight">
               Delete “{activityName}” session?
             </h2>
-            <p
-              id="delete-session-description"
-              className="mt-2 text-sm leading-6 text-muted-foreground"
-            >
-              This permanently removes the session from this device. Future
-              participants, expenses, repayments, and payment instructions
-              linked to this session would also be removed. This action cannot
-              be undone.
+            <p id="delete-session-description" className="mt-2 text-sm leading-6 text-muted-foreground">
+              This permanently removes the session and all participant data from
+              this device. This action cannot be undone.
             </p>
-
             {deleteError ? (
-              <p
-                role="alert"
-                className="mt-4 rounded-xl bg-danger-surface p-3 text-sm font-medium text-danger-foreground"
-              >
+              <p role="alert" className="mt-4 rounded-xl bg-danger-surface p-3 text-sm font-medium text-danger-foreground">
                 {deleteError}
               </p>
             ) : null}
-
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
                 ref={cancelDeleteButtonRef}
                 type="button"
                 onClick={closeDeleteConfirmation}
                 disabled={isDeleting}
-                className="min-h-11 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted disabled:opacity-50"
+                className="min-h-11 rounded-xl border border-border-strong bg-surface px-4 text-sm font-semibold hover:bg-surface-muted disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -277,9 +272,8 @@ export function SessionDetailView({ sessionId }: SessionDetailViewProps) {
                 type="button"
                 onClick={handleDeleteSession}
                 disabled={isDeleting}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-danger px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-h-11 rounded-xl bg-danger px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
               >
-                <Trash2 aria-hidden="true" size={18} />
                 {isDeleting ? "Deleting..." : "Delete Session"}
               </button>
             </div>
