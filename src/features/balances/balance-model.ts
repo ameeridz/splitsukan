@@ -18,40 +18,68 @@ export type SessionBalanceSummary = {
   balances: ParticipantBalance[];
 };
 
-export function calculateSessionBalances(
-  session: SessionRecord,
-): SessionBalanceSummary {
-  const referencedParticipantIds = new Set<ParticipantId>();
+function collectReferencedParticipantIds(session: SessionRecord) {
+  const referencedParticipantIds: ParticipantId[] = [];
+  const seenParticipantIds = new Set<ParticipantId>();
+
+  function addParticipantId(participantId: ParticipantId) {
+    if (!participantId || seenParticipantIds.has(participantId)) return;
+
+    seenParticipantIds.add(participantId);
+    referencedParticipantIds.push(participantId);
+  }
 
   for (const expense of session.expenses) {
     if (expense.status !== "active") continue;
-    referencedParticipantIds.add(expense.paidByParticipantId);
-    for (const allocation of expense.allocations) {
-      referencedParticipantIds.add(allocation.participantId);
+
+    addParticipantId(expense.paidByParticipantId);
+
+    for (const allocation of [...expense.allocations].sort(
+      (first, second) => first.allocationOrder - second.allocationOrder,
+    )) {
+      addParticipantId(allocation.participantId);
     }
   }
 
   for (const repayment of session.repayments) {
     if (repayment.status !== "completed") continue;
-    referencedParticipantIds.add(repayment.fromParticipantId);
-    referencedParticipantIds.add(repayment.toParticipantId);
+
+    addParticipantId(repayment.fromParticipantId);
+    addParticipantId(repayment.toParticipantId);
   }
 
-  const includedParticipants = [...session.participants]
-    .filter(
-      (participant) =>
-        participant.isActive || referencedParticipantIds.has(participant.id),
-    )
-    .sort(
-      (first, second) =>
-        first.participantOrder - second.participantOrder,
-    );
+  return referencedParticipantIds;
+}
+
+export function calculateSessionBalances(
+  session: SessionRecord,
+): SessionBalanceSummary {
+  const referencedParticipantIds = collectReferencedParticipantIds(session);
+  const referencedParticipantIdSet = new Set(referencedParticipantIds);
+  const knownParticipantIds = new Set(
+    session.participants.map((participant) => participant.id),
+  );
+  const includedParticipantIds = [
+    ...[...session.participants]
+      .filter(
+        (participant) =>
+          participant.isActive || referencedParticipantIdSet.has(participant.id),
+      )
+      .sort(
+        (first, second) =>
+          first.participantOrder - second.participantOrder,
+      )
+      .map((participant) => participant.id),
+    ...referencedParticipantIds.filter(
+      (participantId) => !knownParticipantIds.has(participantId),
+    ),
+  ];
 
   const balanceByParticipantId = new Map<ParticipantId, ParticipantBalance>(
-    includedParticipants.map((participant) => [
-      participant.id,
+    includedParticipantIds.map((participantId) => [
+      participantId,
       {
-        participantId: participant.id,
+        participantId,
         paidAmountMinor: 0,
         owedAmountMinor: 0,
         repaymentSentAmountMinor: 0,
@@ -103,8 +131,8 @@ export function calculateSessionBalances(
     totalCompletedRepaymentAmountMinor += repayment.amountMinor;
   }
 
-  const balances = includedParticipants.map((participant) => {
-    const balance = balanceByParticipantId.get(participant.id);
+  const balances = includedParticipantIds.map((participantId) => {
+    const balance = balanceByParticipantId.get(participantId);
     if (!balance) {
       throw new Error("Participant balance could not be initialized.");
     }

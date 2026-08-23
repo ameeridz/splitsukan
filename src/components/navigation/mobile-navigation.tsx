@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Plus, Settings } from "lucide-react";
+import { CalendarDays, FileText, Plus, Settings } from "lucide-react";
 
 function isSessionsRoute(pathname: string) {
   return (
@@ -12,15 +12,63 @@ function isSessionsRoute(pathname: string) {
   );
 }
 
+function isReportsRoute(pathname: string) {
+  return pathname === "/reports" || pathname.startsWith("/reports/");
+}
+
 function isSettingsRoute(pathname: string) {
   return pathname === "/settings" || pathname.startsWith("/settings/");
 }
 
+type NavigationItemProps = {
+  href: string;
+  label: string;
+  active: boolean;
+  icon: typeof CalendarDays;
+};
+
+function NavigationItem({
+  href,
+  label,
+  active,
+  icon: Icon,
+}: NavigationItemProps) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={[
+        "group relative flex min-h-14 min-w-0 flex-col",
+        "items-center justify-center gap-1 rounded-2xl px-2",
+        "text-[11px] font-medium transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2",
+        "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
+        "focus-visible:ring-offset-background",
+        active
+          ? "bg-primary/12 text-primary"
+          : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+      ].join(" ")}
+    >
+      <Icon
+        aria-hidden="true"
+        size={21}
+        strokeWidth={active ? 2.4 : 2}
+      />
+      <span className="max-w-full truncate">{label}</span>
+      <span
+        aria-hidden="true"
+        className={[
+          "absolute bottom-1.5 h-1 w-1 rounded-full bg-primary",
+          "transition-opacity",
+          active ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+      />
+    </Link>
+  );
+}
+
 export function MobileNavigation() {
   const pathname = usePathname();
-
-  const sessionsActive = isSessionsRoute(pathname);
-  const settingsActive = isSettingsRoute(pathname);
 
   return (
     <nav
@@ -29,45 +77,26 @@ export function MobileNavigation() {
     >
       <div
         className={[
-          "mx-auto grid w-full max-w-md grid-cols-[1fr_auto_1fr]",
-          "items-center gap-2 rounded-[1.75rem] p-2",
+          "mx-auto grid w-full max-w-md grid-cols-[1fr_1fr_auto_1fr]",
+          "items-center gap-1 rounded-[1.75rem] p-2",
           "border border-border/80 bg-surface/90",
           "shadow-[0_1rem_3rem_var(--shadow-color)]",
           "backdrop-blur-2xl supports-backdrop-filter:bg-surface/75",
         ].join(" ")}
       >
-        <Link
+        <NavigationItem
           href="/"
-          aria-current={sessionsActive ? "page" : undefined}
-          className={[
-            "group relative flex min-h-14 min-w-0 flex-col",
-            "items-center justify-center gap-1 rounded-2xl px-3",
-            "text-xs font-medium transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2",
-            "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
-            "focus-visible:ring-offset-background",
-            sessionsActive
-              ? "bg-primary/12 text-primary"
-              : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
-          ].join(" ")}
-        >
-          <CalendarDays
-            aria-hidden="true"
-            size={21}
-            strokeWidth={sessionsActive ? 2.4 : 2}
-          />
+          label="Sessions"
+          active={isSessionsRoute(pathname)}
+          icon={CalendarDays}
+        />
 
-          <span className="truncate">Sessions</span>
-
-          <span
-            aria-hidden="true"
-            className={[
-              "absolute bottom-1.5 h-1 w-1 rounded-full bg-primary",
-              "transition-opacity",
-              sessionsActive ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          />
-        </Link>
+        <NavigationItem
+          href="/reports"
+          label="Reports"
+          active={isReportsRoute(pathname)}
+          icon={FileText}
+        />
 
         <Link
           href="/sessions/new"
@@ -87,38 +116,12 @@ export function MobileNavigation() {
           <Plus aria-hidden="true" size={28} strokeWidth={2.4} />
         </Link>
 
-        <Link
+        <NavigationItem
           href="/settings"
-          aria-current={settingsActive ? "page" : undefined}
-          className={[
-            "group relative flex min-h-14 min-w-0 flex-col",
-            "items-center justify-center gap-1 rounded-2xl px-3",
-            "text-xs font-medium transition-colors",
-            "focus-visible:outline-none focus-visible:ring-2",
-            "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
-            "focus-visible:ring-offset-background",
-            settingsActive
-              ? "bg-primary/12 text-primary"
-              : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
-          ].join(" ")}
-        >
-          <Settings
-            aria-hidden="true"
-            size={21}
-            strokeWidth={settingsActive ? 2.4 : 2}
-          />
-
-          <span className="truncate">Settings</span>
-
-          <span
-            aria-hidden="true"
-            className={[
-              "absolute bottom-1.5 h-1 w-1 rounded-full bg-primary",
-              "transition-opacity",
-              settingsActive ? "opacity-100" : "opacity-0",
-            ].join(" ")}
-          />
-        </Link>
+          label="Settings"
+          active={isSettingsRoute(pathname)}
+          icon={Settings}
+        />
       </div>
     </nav>
   );

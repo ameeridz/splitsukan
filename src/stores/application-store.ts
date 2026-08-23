@@ -12,6 +12,7 @@ import {
 } from "../features/expenses/expense-model";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { getParticipantRemovalMode } from "../features/participants/participant-removal";
 import {
   createSessionParticipant,
   normalizeParticipantDisplayName,
@@ -291,14 +292,27 @@ export const useApplicationStore = create<ApplicationStore>()(
         }
 
         const timestamp = createTimestamp();
+        const removalMode = getParticipantRemovalMode(session, participantId);
+
         set((state) => ({
           sessions: state.sessions.map((item) =>
             item.id === sessionId
               ? {
                   ...item,
-                  participants: item.participants.filter(
-                    (participant) => participant.id !== participantId,
-                  ),
+                  participants:
+                    removalMode === "archive"
+                      ? item.participants.map((participant) =>
+                          participant.id === participantId
+                            ? {
+                                ...participant,
+                                isActive: false,
+                                updatedAt: timestamp,
+                              }
+                            : participant,
+                        )
+                      : item.participants.filter(
+                          (participant) => participant.id !== participantId,
+                        ),
                   updatedAt: timestamp,
                 }
               : item,

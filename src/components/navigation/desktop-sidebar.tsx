@@ -3,7 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ExternalLink, Plus, Settings } from "lucide-react";
+import {
+  CalendarDays,
+  ExternalLink,
+  FileText,
+  Plus,
+  Settings,
+} from "lucide-react";
 
 function isSessionsRoute(pathname: string) {
   return (
@@ -13,6 +19,10 @@ function isSessionsRoute(pathname: string) {
   );
 }
 
+function isReportsRoute(pathname: string) {
+  return pathname === "/reports" || pathname.startsWith("/reports/");
+}
+
 function isSettingsRoute(pathname: string) {
   return pathname === "/settings" || pathname.startsWith("/settings/");
 }
@@ -20,6 +30,7 @@ function isSettingsRoute(pathname: string) {
 export function DesktopSidebar() {
   const pathname = usePathname();
   const sessionsActive = isSessionsRoute(pathname);
+  const reportsActive = isReportsRoute(pathname);
   const settingsActive = isSettingsRoute(pathname);
 
   return (
@@ -100,6 +111,28 @@ export function DesktopSidebar() {
         </Link>
 
         <Link
+          href="/reports"
+          aria-current={reportsActive ? "page" : undefined}
+          className={[
+            "flex min-h-11 items-center gap-3 rounded-xl px-3",
+            "text-sm font-medium transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2",
+            "focus-visible:ring-focus-ring focus-visible:ring-offset-2",
+            "focus-visible:ring-offset-surface",
+            reportsActive
+              ? "bg-primary/12 text-primary"
+              : "text-muted-foreground hover:bg-surface-muted hover:text-foreground",
+          ].join(" ")}
+        >
+          <FileText
+            aria-hidden="true"
+            size={20}
+            strokeWidth={reportsActive ? 2.4 : 2}
+          />
+          <span>Reports</span>
+        </Link>
+
+        <Link
           href="/settings"
           aria-current={settingsActive ? "page" : undefined}
           className={[
@@ -126,8 +159,8 @@ export function DesktopSidebar() {
         <div className="rounded-2xl border border-border bg-surface-muted p-4">
           <p className="text-sm font-semibold text-foreground">Local MVP</p>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Your session data stays on this device until cloud sharing is added
-            in a later phase.
+            Sessions and reports stay on this device until cloud sharing is
+            added in a later phase.
           </p>
         </div>
 

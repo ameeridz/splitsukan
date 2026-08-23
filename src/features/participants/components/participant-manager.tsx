@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2, UserRound, UsersRound, X } from "lucide-react";
 
 import { useApplicationStore } from "../../../stores/application-store";
+import { getParticipantRemovalMode } from "../participant-removal";
 import {
   getParticipationWeightLabel,
   type ParticipantId,
@@ -113,6 +114,9 @@ export function ParticipantManager({ sessionId }: ParticipantManagerProps) {
   const removingParticipant = participants.find(
     (participant) => participant.id === removingParticipantId,
   );
+  const removalMode = removingParticipant
+    ? getParticipantRemovalMode(session, removingParticipant.id)
+    : null;
 
   return (
     <section
@@ -316,10 +320,12 @@ export function ParticipantManager({ sessionId }: ParticipantManagerProps) {
               <Trash2 aria-hidden="true" size={22} />
             </span>
             <h3 id="remove-participant-title" className="mt-5 text-xl font-bold tracking-tight">
-              Remove {removingParticipant.displayName}?
+              {removalMode === "archive" ? "Archive" : "Remove"} {removingParticipant.displayName}?
             </h3>
             <p id="remove-participant-description" className="mt-2 text-sm leading-6 text-muted-foreground">
-              This removes the participant from this session. This action cannot be undone.
+              {removalMode === "archive"
+                ? "This participant has financial history. The participant will be archived, excluded from new expenses, and kept by name in reports and PDF history."
+                : "This participant has no financial history and will be removed permanently. This action cannot be undone."}
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
@@ -334,7 +340,7 @@ export function ParticipantManager({ sessionId }: ParticipantManagerProps) {
                 onClick={confirmRemoval}
                 className="min-h-11 rounded-xl bg-danger px-4 text-sm font-semibold text-white hover:opacity-90"
               >
-                Remove Participant
+                {removalMode === "archive" ? "Archive Participant" : "Remove Participant"}
               </button>
             </div>
           </section>
