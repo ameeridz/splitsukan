@@ -85,7 +85,7 @@ describe("validateSessionForm", () => {
   it("accepts a valid custom activity name", () => {
     const values = createValidSessionValues({
       activityType: "other",
-      customActivityName: "Basketball",
+      customActivityName: "Football",
     });
 
     expect(validateSessionForm(values)).toEqual({});
