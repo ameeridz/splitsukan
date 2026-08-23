@@ -26,10 +26,7 @@ function createValidSessionValues(
 describe("useApplicationStore", () => {
   beforeEach(() => {
     useApplicationStore.getState().resetStore();
-
-    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(
-      fixedSessionId,
-    );
+    vi.spyOn(globalThis.crypto, "randomUUID").mockReturnValue(fixedSessionId);
     vi.useFakeTimers();
     vi.setSystemTime(new Date(fixedTimestamp));
   });
@@ -40,23 +37,21 @@ describe("useApplicationStore", () => {
     useApplicationStore.getState().resetStore();
   });
 
-  it("starts with schema version 1 and no sessions", () => {
+  it("starts with schema version 2 and no sessions", () => {
     const state = useApplicationStore.getState();
 
     expect(state.schemaVersion).toBe(applicationSchemaVersion);
-    expect(state.schemaVersion).toBe(1);
+    expect(state.schemaVersion).toBe(2);
     expect(state.sessions).toEqual([]);
   });
 
   it("creates a normalized Draft session in MYR", () => {
-    const session = useApplicationStore
-      .getState()
-      .createSession(
-        createValidSessionValues({
-          venue: "  ABC Badminton Centre  ",
-          note: "  Court 3 and Court 4  ",
-        }),
-      );
+    const session = useApplicationStore.getState().createSession(
+      createValidSessionValues({
+        venue: "  ABC Badminton Centre  ",
+        note: "  Court 3 and Court 4  ",
+      }),
+    );
 
     expect(session).toEqual({
       id: fixedSessionId,
@@ -68,6 +63,7 @@ describe("useApplicationStore", () => {
       note: "Court 3 and Court 4",
       currency: "MYR",
       status: "draft",
+      participants: [],
       createdAt: fixedTimestamp,
       updatedAt: fixedTimestamp,
       settledAt: null,
@@ -86,21 +82,19 @@ describe("useApplicationStore", () => {
     const session = useApplicationStore.getState().createSession(
       createValidSessionValues({
         activityType: "other",
-        customActivityName: "  Football  ",
+        customActivityName: "  Basketball  ",
       }),
     );
 
     expect(session.activityType).toBe("other");
-    expect(session.customActivityName).toBe("Football");
+    expect(session.customActivityName).toBe("Basketball");
   });
 
   it("appends a session without mutating the previous array", () => {
     const previousSessions = useApplicationStore.getState().sessions;
-
     const session = useApplicationStore
       .getState()
       .createSession(createValidSessionValues());
-
     const nextSessions = useApplicationStore.getState().sessions;
 
     expect(previousSessions).toEqual([]);
@@ -129,9 +123,7 @@ describe("useApplicationStore", () => {
 
   it("returns undefined for an unknown session ID", () => {
     expect(
-      useApplicationStore
-        .getState()
-        .getSessionById("unknown-session-id"),
+      useApplicationStore.getState().getSessionById("unknown-session-id"),
     ).toBeUndefined();
   });
 
@@ -143,7 +135,6 @@ describe("useApplicationStore", () => {
     useApplicationStore.getState().resetStore();
 
     const state = useApplicationStore.getState();
-
     expect(state.schemaVersion).toBe(applicationSchemaVersion);
     expect(state.sessions).toEqual([]);
   });

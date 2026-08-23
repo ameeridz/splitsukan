@@ -17,6 +17,7 @@ function createSession(overrides: Partial<SessionRecord> = {}): SessionRecord {
     note: null,
     currency: "MYR",
     status: "draft",
+    participants: [],
     createdAt: "2026-08-22T12:00:00.000Z",
     updatedAt: "2026-08-22T12:00:00.000Z",
     settledAt: null,
@@ -25,15 +26,57 @@ function createSession(overrides: Partial<SessionRecord> = {}): SessionRecord {
 }
 
 describe("restorePersistedApplicationState", () => {
-  it("restores valid version 1 data", () => {
+  it("restores valid version 2 data", () => {
     const session = createSession();
 
     expect(
       restorePersistedApplicationState({
-        schemaVersion: 1,
+        schemaVersion: 2,
         sessions: [session],
       }),
-    ).toEqual({ schemaVersion: 1, sessions: [session] });
+    ).toEqual({ schemaVersion: 2, sessions: [session] });
+  });
+
+  it("migrates version 1 sessions with an empty participants list", () => {
+    const versionOneSession = createSession();
+    const sessionWithoutParticipants: Record<string, unknown> = {
+      ...versionOneSession,
+    };
+    delete sessionWithoutParticipants.participants;
+
+    expect(
+      restorePersistedApplicationState({
+        schemaVersion: 1,
+        sessions: [sessionWithoutParticipants],
+      }),
+    ).toEqual({
+      schemaVersion: 2,
+      sessions: [{ ...sessionWithoutParticipants, participants: [] }],
+    });
+  });
+
+  it("restores valid participant data", () => {
+    const session = createSession({
+      participants: [
+        {
+          id: "participant-1",
+          displayName: "Juan",
+          normalizedName: "juan",
+          defaultWeightUnits: 1000,
+          participantOrder: 0,
+          isActive: true,
+          createdAt: "2026-08-23T01:00:00.000Z",
+          updatedAt: "2026-08-23T01:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(
+      restorePersistedApplicationState({
+        schemaVersion: 2,
+        sessions: [session],
+      }),
+    ).toEqual({ schemaVersion: 2, sessions: [session] });
   });
 
   it("returns empty state for null", () => {
@@ -56,15 +99,15 @@ describe("restorePersistedApplicationState", () => {
 
   it("rejects a non-array sessions value", () => {
     expect(
-      restorePersistedApplicationState({ schemaVersion: 1, sessions: {} }),
+      restorePersistedApplicationState({ schemaVersion: 2, sessions: {} }),
     ).toEqual(emptyPersistedApplicationState);
   });
 
   it("rejects a session with an invalid activity", () => {
     expect(
       restorePersistedApplicationState({
-        schemaVersion: 1,
-        sessions: [createSession({ activityType: "badminton" }), { ...createSession(), activityType: "invalid" }],
+        schemaVersion: 2,
+        sessions: [{ ...createSession(), activityType: "invalid" }],
       }),
     ).toEqual(emptyPersistedApplicationState);
   });
@@ -72,7 +115,7 @@ describe("restorePersistedApplicationState", () => {
   it("rejects a session with an invalid currency", () => {
     expect(
       restorePersistedApplicationState({
-        schemaVersion: 1,
+        schemaVersion: 2,
         sessions: [{ ...createSession(), currency: "USD" }],
       }),
     ).toEqual(emptyPersistedApplicationState);
@@ -81,8 +124,33 @@ describe("restorePersistedApplicationState", () => {
   it("rejects a session with an invalid status", () => {
     expect(
       restorePersistedApplicationState({
-        schemaVersion: 1,
+        schemaVersion: 2,
         sessions: [{ ...createSession(), status: "unknown" }],
+      }),
+    ).toEqual(emptyPersistedApplicationState);
+  });
+
+  it("rejects participant data with an invalid weight", () => {
+    expect(
+      restorePersistedApplicationState({
+        schemaVersion: 2,
+        sessions: [
+          {
+            ...createSession(),
+            participants: [
+              {
+                id: "participant-1",
+                displayName: "Juan",
+                normalizedName: "juan",
+                defaultWeightUnits: 750,
+                participantOrder: 0,
+                isActive: true,
+                createdAt: "2026-08-23T01:00:00.000Z",
+                updatedAt: "2026-08-23T01:00:00.000Z",
+              },
+            ],
+          },
+        ],
       }),
     ).toEqual(emptyPersistedApplicationState);
   });

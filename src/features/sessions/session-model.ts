@@ -1,3 +1,4 @@
+import type { SessionParticipant } from "../participants/participant-model";
 import {
   getActivityLabel,
   isCustomActivity,
@@ -22,6 +23,7 @@ export type SessionRecord = {
   note: string | null;
   currency: CurrencyCode;
   status: SessionStatus;
+  participants: SessionParticipant[];
   createdAt: string;
   updatedAt: string;
   settledAt: string | null;
@@ -62,6 +64,7 @@ export function createSessionRecord({
     ...normalizeSessionValues(values),
     currency: "MYR",
     status: "draft",
+    participants: [],
     createdAt: timestamp,
     updatedAt: timestamp,
     settledAt: null,
