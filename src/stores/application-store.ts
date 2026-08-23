@@ -1,4 +1,13 @@
 import { create } from "zustand";
+import { calculateExpenseAllocations } from "../features/expenses/expense-allocation";
+import {
+  createSessionExpense,
+  normalizeExpenseDescription,
+  updateSessionExpense,
+  type ExpenseId,
+  type ExpenseInput,
+  type ExpenseMutationResult,
+} from "../features/expenses/expense-model";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import {
@@ -53,6 +62,17 @@ type ApplicationActions = {
     sessionId: SessionId,
     participantId: ParticipantId,
   ) => boolean;
+  addExpense: (
+    sessionId: SessionId,
+    input: ExpenseInput,
+  ) => ExpenseMutationResult;
+  updateExpense: (
+    sessionId: SessionId,
+    expenseId: ExpenseId,
+    input: ExpenseInput,
+  ) => ExpenseMutationResult;
+  voidExpense: (sessionId: SessionId, expenseId: ExpenseId) => boolean;
+  deleteExpense: (sessionId: SessionId, expenseId: ExpenseId) => boolean;
   setHasHydrated: (hasHydrated: boolean) => void;
   resetStore: () => void;
 };
@@ -93,7 +113,6 @@ export const useApplicationStore = create<ApplicationStore>()(
         const existingSession = get().sessions.find(
           (session) => session.id === sessionId,
         );
-
         if (!existingSession) return undefined;
 
         const updatedSession = updateSessionRecord({
@@ -107,7 +126,6 @@ export const useApplicationStore = create<ApplicationStore>()(
             session.id === sessionId ? updatedSession : session,
           ),
         }));
-
         return updatedSession;
       },
 
@@ -141,11 +159,12 @@ export const useApplicationStore = create<ApplicationStore>()(
           return { ok: false, reason: "duplicate-name" };
         }
 
-        const participantOrder = session.participants.reduce(
-          (highestOrder, participant) =>
-            Math.max(highestOrder, participant.participantOrder),
-          -1,
-        ) + 1;
+        const participantOrder =
+          session.participants.reduce(
+            (highestOrder, participant) =>
+              Math.max(highestOrder, participant.participantOrder),
+            -1,
+          ) + 1;
         const timestamp = createTimestamp();
         const participant = createSessionParticipant({
           id: createId(),
@@ -235,6 +254,176 @@ export const useApplicationStore = create<ApplicationStore>()(
                   participants: item.participants.filter(
                     (participant) => participant.id !== participantId,
                   ),
+                  updatedAt: timestamp,
+                }
+              : item,
+          ),
+        }));
+        return true;
+      },
+
+      addExpense: (sessionId, input) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session) return { ok: false, reason: "session-not-found" };
+
+        const description = normalizeExpenseDescription(input.description);
+        if (!description) return { ok: false, reason: "invalid-description" };
+        if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+          return { ok: false, reason: "invalid-amount" };
+        }
+
+        const activeParticipantIds = new Set(
+          session.participants.filter((item) => item.isActive).map((item) => item.id),
+        );
+        if (!activeParticipantIds.has(input.paidByParticipantId)) {
+          return { ok: false, reason: "invalid-payer" };
+        }
+        if (input.participants.length === 0) {
+          return { ok: false, reason: "invalid-participants" };
+        }
+
+        const selectedIds = new Set<string>();
+        for (const participant of input.participants) {
+          if (selectedIds.has(participant.participantId)) {
+            return { ok: false, reason: "duplicate-participant" };
+          }
+          if (
+            !activeParticipantIds.has(participant.participantId) ||
+            !Number.isSafeInteger(participant.weightUnits) ||
+            participant.weightUnits <= 0
+          ) {
+            return { ok: false, reason: "invalid-participants" };
+          }
+          selectedIds.add(participant.participantId);
+        }
+
+        const id = createId();
+        const timestamp = createTimestamp();
+        const allocations = calculateExpenseAllocations({
+          expenseId: id,
+          amountMinor: input.amountMinor,
+          participants: input.participants,
+        });
+        const expense = createSessionExpense({
+          id,
+          ...input,
+          description,
+          allocations,
+          timestamp,
+        });
+
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? { ...item, expenses: [...item.expenses, expense], updatedAt: timestamp }
+              : item,
+          ),
+        }));
+        return { ok: true, expense };
+      },
+
+      updateExpense: (sessionId, expenseId, input) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session) return { ok: false, reason: "session-not-found" };
+        const expense = session.expenses.find((item) => item.id === expenseId);
+        if (!expense) return { ok: false, reason: "expense-not-found" };
+
+        const description = normalizeExpenseDescription(input.description);
+        if (!description) return { ok: false, reason: "invalid-description" };
+        if (!Number.isSafeInteger(input.amountMinor) || input.amountMinor <= 0) {
+          return { ok: false, reason: "invalid-amount" };
+        }
+
+        const activeParticipantIds = new Set(
+          session.participants.filter((item) => item.isActive).map((item) => item.id),
+        );
+        if (!activeParticipantIds.has(input.paidByParticipantId)) {
+          return { ok: false, reason: "invalid-payer" };
+        }
+        if (input.participants.length === 0) {
+          return { ok: false, reason: "invalid-participants" };
+        }
+
+        const selectedIds = new Set<string>();
+        for (const participant of input.participants) {
+          if (selectedIds.has(participant.participantId)) {
+            return { ok: false, reason: "duplicate-participant" };
+          }
+          if (
+            !activeParticipantIds.has(participant.participantId) ||
+            !Number.isSafeInteger(participant.weightUnits) ||
+            participant.weightUnits <= 0
+          ) {
+            return { ok: false, reason: "invalid-participants" };
+          }
+          selectedIds.add(participant.participantId);
+        }
+
+        const timestamp = createTimestamp();
+        const allocations = calculateExpenseAllocations({
+          expenseId,
+          amountMinor: input.amountMinor,
+          participants: input.participants,
+        });
+        const updatedExpense = updateSessionExpense({
+          expense,
+          ...input,
+          description,
+          allocations,
+          timestamp,
+        });
+
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? {
+                  ...item,
+                  expenses: item.expenses.map((current) =>
+                    current.id === expenseId ? updatedExpense : current,
+                  ),
+                  updatedAt: timestamp,
+                }
+              : item,
+          ),
+        }));
+        return { ok: true, expense: updatedExpense };
+      },
+
+      voidExpense: (sessionId, expenseId) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        const expense = session?.expenses.find((item) => item.id === expenseId);
+        if (!session || !expense || expense.status === "void") return false;
+
+        const timestamp = createTimestamp();
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? {
+                  ...item,
+                  expenses: item.expenses.map((current) =>
+                    current.id === expenseId
+                      ? { ...current, status: "void", updatedAt: timestamp }
+                      : current,
+                  ),
+                  updatedAt: timestamp,
+                }
+              : item,
+          ),
+        }));
+        return true;
+      },
+
+      deleteExpense: (sessionId, expenseId) => {
+        const session = get().sessions.find((item) => item.id === sessionId);
+        if (!session?.expenses.some((item) => item.id === expenseId)) return false;
+
+        const timestamp = createTimestamp();
+        set((state) => ({
+          sessions: state.sessions.map((item) =>
+            item.id === sessionId
+              ? {
+                  ...item,
+                  expenses: item.expenses.filter((expense) => expense.id !== expenseId),
                   updatedAt: timestamp,
                 }
               : item,

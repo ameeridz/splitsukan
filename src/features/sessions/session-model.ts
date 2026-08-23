@@ -1,3 +1,4 @@
+import type { SessionExpense } from "../expenses/expense-model";
 import type { SessionParticipant } from "../participants/participant-model";
 import {
   getActivityLabel,
@@ -24,6 +25,7 @@ export type SessionRecord = {
   currency: CurrencyCode;
   status: SessionStatus;
   participants: SessionParticipant[];
+  expenses: SessionExpense[];
   createdAt: string;
   updatedAt: string;
   settledAt: string | null;
@@ -65,6 +67,7 @@ export function createSessionRecord({
     currency: "MYR",
     status: "draft",
     participants: [],
+    expenses: [],
     createdAt: timestamp,
     updatedAt: timestamp,
     settledAt: null,

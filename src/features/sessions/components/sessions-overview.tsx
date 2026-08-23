@@ -8,8 +8,10 @@ import {
   MapPin,
   Plus,
   UsersRound,
+  WalletCards,
 } from "lucide-react";
 
+import { formatMoneyMinorUnits } from "../../expenses/expense-model";
 import { useApplicationStore } from "../../../stores/application-store";
 import { formatSessionDate } from "../session-date-format";
 import {
@@ -45,6 +47,13 @@ function SessionCard({ session }: { session: SessionRecord }) {
   const activeParticipantCount = session.participants.filter(
     (participant) => participant.isActive,
   ).length;
+  const activeExpenses = session.expenses.filter(
+    (expense) => expense.status === "active",
+  );
+  const activeExpenseTotalMinor = activeExpenses.reduce(
+    (total, expense) => total + expense.amountMinor,
+    0,
+  );
 
   return (
     <Link
@@ -93,6 +102,20 @@ function SessionCard({ session }: { session: SessionRecord }) {
             {activeParticipantCount === 1 ? "participant" : "participants"}
           </dd>
         </div>
+
+        <div className="flex items-center gap-2 text-sm text-muted-foreground sm:col-span-2">
+          <WalletCards aria-hidden="true" size={17} />
+          <dt className="sr-only">Active expenses</dt>
+          <dd>
+            <span className="font-semibold text-foreground">
+              {formatMoneyMinorUnits(activeExpenseTotalMinor)}
+            </span>{" "}
+            · {activeExpenses.length}{" "}
+            {activeExpenses.length === 1
+              ? "active expense"
+              : "active expenses"}
+          </dd>
+        </div>
       </dl>
 
       <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
@@ -121,7 +144,7 @@ export function SessionsOverview() {
             <div
               key={item}
               aria-hidden="true"
-              className="h-48 animate-pulse rounded-2xl border border-border bg-surface"
+              className="h-52 animate-pulse rounded-2xl border border-border bg-surface"
             />
           ))}
         </div>
@@ -139,7 +162,6 @@ export function SessionsOverview() {
         >
           <CalendarDays size={27} strokeWidth={2.2} />
         </span>
-
         <h2 className="mt-5 text-xl font-bold tracking-tight">
           Create your first sports session
         </h2>
@@ -147,7 +169,6 @@ export function SessionsOverview() {
           Add the activity, date, time, and venue. Participants and shared
           expenses can be added after the session is created.
         </p>
-
         <Link
           href="/sessions/new"
           className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
@@ -171,11 +192,10 @@ export function SessionsOverview() {
               Play together. Split fairly.
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-              Your sessions and participants are stored locally on this device
-              and remain available after refresh or browser restart.
+              Sessions, participants, and shared expenses are stored locally on
+              this device.
             </p>
           </div>
-
           <Link
             href="/sessions/new"
             className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
@@ -187,18 +207,13 @@ export function SessionsOverview() {
       </section>
 
       <section aria-labelledby="saved-sessions-title">
-        <div>
-          <h2
-            id="saved-sessions-title"
-            className="text-xl font-bold tracking-tight"
-          >
-            Saved sessions
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {sortedSessions.length} locally saved{" "}
-            {sortedSessions.length === 1 ? "session" : "sessions"}
-          </p>
-        </div>
+        <h2 id="saved-sessions-title" className="text-xl font-bold tracking-tight">
+          Saved sessions
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {sortedSessions.length} locally saved{" "}
+          {sortedSessions.length === 1 ? "session" : "sessions"}
+        </p>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           {sortedSessions.map((session) => (
@@ -209,11 +224,7 @@ export function SessionsOverview() {
 
       <aside className="rounded-2xl border border-dashed border-border-strong bg-surface-muted p-5 sm:p-6">
         <div className="flex items-start gap-3">
-          <MapPin
-            aria-hidden="true"
-            size={20}
-            className="mt-0.5 shrink-0 text-primary"
-          />
+          <MapPin aria-hidden="true" size={20} className="mt-0.5 shrink-0 text-primary" />
           <div>
             <h2 className="font-bold tracking-tight">Local-first storage</h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
