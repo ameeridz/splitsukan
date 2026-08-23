@@ -95,6 +95,7 @@ type ApplicationActions = {
   ) => RepaymentMutationResult;
   voidRepayment: (sessionId: SessionId, repaymentId: RepaymentId) => boolean;
   deleteRepayment: (sessionId: SessionId, repaymentId: RepaymentId) => boolean;
+  restoreBackupSessions: (sessions: SessionRecord[]) => void;
   setHasHydrated: (hasHydrated: boolean) => void;
   resetStore: () => void;
 };
@@ -682,6 +683,13 @@ export const useApplicationStore = create<ApplicationStore>()(
         }));
         return true;
       },
+
+      restoreBackupSessions: (sessions) =>
+        set({
+          schemaVersion: applicationSchemaVersion,
+          sessions: structuredClone(sessions),
+          hasHydrated: true,
+        }),
 
       setHasHydrated: (hasHydrated) => set({ hasHydrated }),
       resetStore: () => set(initialApplicationState),
